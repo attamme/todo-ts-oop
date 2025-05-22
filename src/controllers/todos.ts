@@ -1,65 +1,95 @@
 import { Request, Response, NextFunction } from "express";
+import { promises as fs } from "fs";
 import { Todo } from "../models/todo";
+import path from "path";
 
-const todos: Todo[] = [];
+const DATA_FILE = path.join(__dirname, '../../data', 'todos.json');
 
-export const createTodo = (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const task = (req.body as { task: string }).task;
-    const newTodo = new Todo(Math.random().toString(), task);
-    todos.push(newTodo);
-    res.status(201).json({ message: "Todo created", todo: newTodo });
-  } catch (error) {
-    console.log(error);
-  }
-};
-
-export const getTodos = (req: Request, res: Response, next: NextFunction) => {
-  try {
-    res.status(201).json({ 
-        task: todos 
-    });
-  } catch (error) {
-    console.log(error);
-  }
-};
-
-export const updateTodo = (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const todoId = req.params.id;
-    const updatedTask = (req.body as { task: string }).task;
-    const todoIndex = todos.findIndex((todo) => todo.id === todoId);
-
-    if (todoIndex < 0) {
-      throw new Error("Could not find todo.");
+export class TodoController {
+    private async readTodosFromFile(): Promise<Todo[]> {
+        try {
+            const data = await fs.readFile(DATA_FILE, 'utf-8');
+            return JSON.parse(data) as Todo[];
+        } catch (error) {
+            return [];
+        }
     }
 
-    todos[todoIndex] = new Todo(todos[todoIndex].id, updatedTask);
-
-    res.status(201).json({ 
-        message: "Todo updated", 
-        todo: todos[todoIndex] 
-    });
-  } catch (error) {
-    console.log(error);
-  }
-}
-
-export const deleteTodo = (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const todoId = req.params.id;
-    const todoIndex = todos.findIndex((todo) => todo.id === todoId);
-
-    if (todoIndex < 0) {
-      throw new Error("Could not find todo.");
+    private async writeTodosToFile(todos: Todo[]): Promise<void> {
+        await fs.writeFile(DATA_FILE, JSON.stringify(todos, null, 2));
     }
 
-    todos.splice(todoIndex, 1);
+    public createTodo = async (req: Request, res: Response, next: NextFunction) => { 
+        try {
+            const task = (req.body as { task: string }).task;
+            const newTodo = new Todo(Math.random().toString(), task);
 
-    res.status(201).json({ 
-        message: "Todo deleted" 
-    });
-  } catch (error) {
-    console.log(error);
-  }
+            const todos = await this.readTodosFromFile();
+            todos.push(newTodo);
+            await this.writeTodosToFile(todos);
+
+            res.status(201).json({ 
+                message: "Todo created", 
+                todo: newTodo 
+            });
+        } catch (error) {
+            next(error);        
+        }
+    }
+
+    public getTodos = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const todos = await this.readTodosFromFile();
+            res.status(200).json({ 
+                tasks: todos 
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    public updateTodo = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const todoId = req.params.id;
+            const updatedTask = (req.body as { task: string }).task;
+
+            const todos = await this.readTodosFromFile();
+            const todoIndex = todos.findIndex(todo => todo.id === todoId);
+
+            if (todoIndex < 0) {
+                throw new Error("Todo not found");
+            }
+
+            todos[todoIndex].task = updatedTask;
+            await this.writeTodosToFile(todos);
+
+            res.status(200).json({ 
+                message: "Todo updated",
+                updatedTask: todos[todoIndex]
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    public deleteTodo = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const todoId = req.params.id;
+
+            const todos = await this.readTodosFromFile();
+            const updatedTodos = todos.filter(todo => todo.id !== todoId);
+
+            if (todos.length === updatedTodos.length) {
+                throw new Error("Todo not found");
+            }
+
+            await this.writeTodosToFile(updatedTodos);
+
+            res.status(200).json({ 
+                message: "Todo deleted" 
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
 }
