@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createTodo = void 0;
+exports.getTodos = exports.createTodo = void 0;
 const todo_1 = require("../models/todo");
 const todos = [];
 const createTodo = (req, res, next) => {
@@ -15,3 +15,14 @@ const createTodo = (req, res, next) => {
     }
 };
 exports.createTodo = createTodo;
+const getTodos = (req, res, next) => {
+    try {
+        res.status(201).json({
+            task: todos
+        });
+    }
+    catch (error) {
+        console.log(error);
+    }
+};
+exports.getTodos = getTodos;
