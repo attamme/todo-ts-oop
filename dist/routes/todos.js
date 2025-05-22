@@ -6,6 +6,6 @@ const router = (0, express_1.Router)();
 router.post('/', todos_1.createTodo);
 /* router.get('/')
 router.patch('/:id')
-router.delete('/:id') */
+router.delete('/:id') */ // - have to be commented when not in use
 exports.default = router;
 // This code defines a router for handling HTTP requests related to "todos".
